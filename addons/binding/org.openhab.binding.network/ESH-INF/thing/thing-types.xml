@@ -47,6 +47,12 @@
 				<default>5000</default>
 				<advanced>true</advanced>
 			</parameter>
+			
+			<parameter name="arpPingTries" type="integer">
+                <label>ARP Max Ping attempts</label>
+                <description>States how many ARP ping attempts tool can perform before device is stated as offline</description>
+                <default>20</default>
+            </parameter>
 		</config-description>
 	</thing-type>
 
@@ -98,6 +104,12 @@
 				<description>States how long to wait after a device state update before the next refresh shall occur (in ms)</description>
 				<default>60000</default>
 			</parameter>
+			
+			<parameter name="arpPingTries" type="integer">
+                <label>ARP Max Ping attempts</label>
+                <description>States how many ARP ping attempts tool can perform before device is stated as offline</description>
+                <default>20</default>
+            </parameter>
 		</config-description>
 	</thing-type>
 

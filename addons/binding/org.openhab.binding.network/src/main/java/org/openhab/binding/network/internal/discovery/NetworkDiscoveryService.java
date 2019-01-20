@@ -1,14 +1,10 @@
 /**
- * Copyright (c) 2010-2019 Contributors to the openHAB project
+ * Copyright (c) 2010-2019 by the respective copyright holders.
  *
- * See the NOTICE file(s) distributed with this work for additional
- * information.
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0
- *
- * SPDX-License-Identifier: EPL-2.0
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
  */
 package org.openhab.binding.network.internal.discovery;
 
@@ -57,6 +53,7 @@ import org.slf4j.LoggerFactory;
 @Component(service = DiscoveryService.class, immediate = true, configurationPid = "discovery.network")
 public class NetworkDiscoveryService extends AbstractDiscoveryService implements PresenceDetectionListener {
     static final int PING_TIMEOUT_IN_MS = 500;
+    static final int MAXIMUM_NUMBERS_OF_ARP_PINGS = 5;
     static final int MAXIMUM_IPS_PER_INTERFACE = 255;
     private static final long DISCOVERY_RESULT_TTL = TimeUnit.MINUTES.toSeconds(10);
     private final Logger logger = LoggerFactory.getLogger(NetworkDiscoveryService.class);
@@ -144,6 +141,7 @@ public class NetworkDiscoveryService extends AbstractDiscoveryService implements
             s.setIOSDevice(true);
             s.setUseDhcpSniffing(false);
             s.setTimeout(PING_TIMEOUT_IN_MS);
+            s.setArpPingTries(MAXIMUM_NUMBERS_OF_ARP_PINGS);
             // Ping devices
             s.setUseIcmpPing(true);
             s.setUseArpPing(true, configuration.arpPingToolPath);
@@ -189,7 +187,7 @@ public class NetworkDiscoveryService extends AbstractDiscoveryService implements
     /**
      * Submit newly discovered devices. This method is called by the spawned threads in {@link startScan}.
      *
-     * @param ip The device IP
+     * @param ip      The device IP
      * @param tcpPort The TCP port
      */
     public void newServiceDevice(String ip, int tcpPort) {

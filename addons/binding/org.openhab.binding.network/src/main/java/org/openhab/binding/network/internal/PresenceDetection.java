@@ -1,14 +1,10 @@
 /**
- * Copyright (c) 2010-2019 Contributors to the openHAB project
+ * Copyright (c) 2010-2019 by the respective copyright holders.
  *
- * See the NOTICE file(s) distributed with this work for additional
- * information.
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0
- *
- * SPDX-License-Identifier: EPL-2.0
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * which accompanies this distribution, and is available at
+ * http://www.eclipse.org/legal/epl-v10.html
  */
 package org.openhab.binding.network.internal;
 
@@ -43,6 +39,8 @@ import org.slf4j.LoggerFactory;
  *
  * @author Marc Mettke - Initial contribution
  * @author David Gräff, 2017 - Rewritten
+ * @author Konstantin Panchenko, 2019 - Added number of attempts to arp value,
+ *         fixed Arp Ping property status
  */
 @NonNullByDefault
 public class PresenceDetection implements IPRequestReceivedCallback {
@@ -62,6 +60,7 @@ public class PresenceDetection implements IPRequestReceivedCallback {
 
     private long refreshIntervalInMS = 60000;
     private int timeoutInMS = 5000;
+    private int arpTries = 20;
     private long lastSeenInMS;
 
     private @NonNullByDefault({}) String hostname;
@@ -74,7 +73,7 @@ public class PresenceDetection implements IPRequestReceivedCallback {
     protected @Nullable ExecutorService executorService;
     private String dhcpState = "off";
     Integer currentCheck = 0;
-    int detectionChecks;
+    int detectionChecks = 0;
 
     public PresenceDetection(final PresenceDetectionListener updateListener, int cacheDeviceStateTimeInMS)
             throws IllegalArgumentException {
@@ -100,9 +99,16 @@ public class PresenceDetection implements IPRequestReceivedCallback {
         return timeoutInMS;
     }
 
+    public int getArpPingTries() {
+        return arpTries;
+    }
+
     public void setHostname(String hostname) throws UnknownHostException {
         this.hostname = hostname;
         this.destination = InetAddress.getByName(hostname);
+
+        boolean ttt = destination.isSiteLocalAddress();
+
         if (arpPingMethod != null) {
             if (destination instanceof Inet4Address) {
                 setUseArpPing(true, arpPingUtilPath);
@@ -128,12 +134,16 @@ public class PresenceDetection implements IPRequestReceivedCallback {
         this.timeoutInMS = timeout;
     }
 
+    public void setArpPingTries(int tries) {
+        this.arpTries = tries;
+    }
+
     /**
      * Sets the ping method. This method will perform a feature test. If SYSTEM_PING
      * does not work on this system, JAVA_PING will be used instead.
      *
      * @param useSystemPing Set to true to use a system ping method, false to use java ping and null to disable ICMP
-     *            pings.
+     *                          pings.
      */
     public void setUseIcmpPing(@Nullable Boolean useSystemPing) {
         if (useSystemPing == null) {
@@ -155,7 +165,7 @@ public class PresenceDetection implements IPRequestReceivedCallback {
      * is not an IPv4 address. If the feature test for the native arping utility fails,
      * it will be disabled as well.
      *
-     * @param enable Enable or disable ARP ping
+     * @param enable          Enable or disable ARP ping
      * @param arpPingUtilPath The file path to the utility
      */
     public void setUseArpPing(boolean enable, String arpPingUtilPath) {
@@ -163,13 +173,19 @@ public class PresenceDetection implements IPRequestReceivedCallback {
         if (!enable || StringUtils.isBlank(arpPingUtilPath)) {
             arpPingState = "Disabled";
             arpPingMethod = null;
-            return;
+            // return;
         } else if (destination == null || !(destination instanceof Inet4Address)) {
-            arpPingState = "Destination is IPv4";
+            arpPingState = "Destination is not IPv4";
             arpPingMethod = null;
-            return;
+            // return;
+        } else {
+            arpPingMethod = networkUtils.determineNativeARPpingMethod(arpPingUtilPath);
+            if (arpPingMethod == ArpPingUtilEnum.UNKNOWN_TOOL) {
+                arpPingState = "Unsupported ARP Ping tools";
+            } else {
+                arpPingState = "Enabled";
+            }
         }
-        arpPingMethod = networkUtils.determineNativeARPpingMethod(arpPingUtilPath);
     }
 
     public String getArpPingState() {
@@ -211,8 +227,8 @@ public class PresenceDetection implements IPRequestReceivedCallback {
      * Return asynchronously the value of the presence detection as a PresenceDetectionValue.
      *
      * @param callback A callback with the PresenceDetectionValue. The callback may
-     *            not happen immediately if the cached value expired, but as soon as a new
-     *            discovery took place.
+     *                     not happen immediately if the cached value expired, but as soon as a new
+     *                     discovery took place.
      */
     public void getValue(Consumer<PresenceDetectionValue> callback) {
         cache.getValue(callback);
@@ -250,16 +266,16 @@ public class PresenceDetection implements IPRequestReceivedCallback {
             return false;
         }
 
-        Set<String> interfaceNames = null;
+        // Set<String> interfaceNames = null;
 
         currentCheck = 0;
         detectionChecks = tcpPorts.size();
+
         if (pingMethod != null) {
             detectionChecks += 1;
         }
         if (arpPingMethod != null) {
-            interfaceNames = networkUtils.getInterfaceNames();
-            detectionChecks += interfaceNames.size();
+            detectionChecks += 1;
         }
 
         if (detectionChecks == 0) {
@@ -277,15 +293,13 @@ public class PresenceDetection implements IPRequestReceivedCallback {
             });
         }
 
-        // ARP ping for IPv4 addresses. Use an own executor for each network interface
-        if (interfaceNames != null) {
-            for (final String interfaceName : interfaceNames) {
-                executorService.execute(() -> {
-                    Thread.currentThread().setName("presenceDetectionARP_" + hostname + " " + interfaceName);
-                    performARPping(interfaceName);
-                    checkIfFinished();
-                });
-            }
+        // ARP ping for IPv4 addresses.
+        if (arpPingMethod != null) {
+            executorService.execute(() -> {
+                Thread.currentThread().setName("presenceDetectionARP_" + hostname + " ");
+                performARPping();
+                checkIfFinished();
+            });
         }
 
         // ICMP ping
@@ -421,17 +435,17 @@ public class PresenceDetection implements IPRequestReceivedCallback {
      * called before performing the ARP ping.
      *
      * @param interfaceName The interface name. You can request a list of interface names
-     *            from {@see NetworkUtils.getInterfaceNames()} for example.
+     *                          from {@see NetworkUtils.getInterfaceNames()} for example.
      */
-    protected void performARPping(String interfaceName) {
+    protected void performARPping() {
         try {
-            logger.trace("Perform ARP ping presence detection for {} on interface: {}", hostname, interfaceName);
+            logger.trace("Perform ARP ping presence detection for {}", hostname);
             if (iosDevice) {
                 networkUtils.wakeUpIOS(destination);
                 Thread.sleep(50);
             }
             double pingTime = System.nanoTime();
-            if (networkUtils.nativeARPPing(arpPingMethod, arpPingUtilPath, interfaceName, destination.getHostAddress(),
+            if (networkUtils.nativeARPPing(arpPingMethod, arpPingUtilPath, destination.getHostAddress(), arpTries,
                     timeoutInMS)) {
                 final double latency = Math.round((System.nanoTime() - pingTime) / 1000000.0f);
                 PresenceDetectionValue v = updateReachableValue(PresenceDetectionType.ARP_PING, latency);
