@@ -6,7 +6,7 @@
 
 	<name>Network Binding</name>
 	<description>The Network Binding can be used for device presence detection and to determine network device health</description>
-	<author>Marc Mettke, David Graeff</author>
+	<author>Marc Mettke, David Graeff, Konstantin Panchenko</author>
 	<config-description>
 		<parameter name="allowSystemPings" type="boolean">
 			<default>true</default>

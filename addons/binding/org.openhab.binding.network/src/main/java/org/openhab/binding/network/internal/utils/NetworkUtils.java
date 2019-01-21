@@ -235,6 +235,7 @@ public class NetworkUtils {
      * @return Returns true if the device responded
      * @throws IOException The ping command could probably not be found
      */
+    @SuppressWarnings("null")
     public boolean nativePing(@Nullable IpPingMethodEnum method, String hostname, int timeoutInMS)
             throws IOException, InterruptedException {
         Process proc;
