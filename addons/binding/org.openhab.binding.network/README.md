@@ -46,6 +46,7 @@ Use the following options for a **network:pingdevice**:
 -   **hostname:** IP address or hostname of the device
 -   **retry:** After how many refresh interval cycles the device will be assumed to be offline. Default is 1.
 -   **timeout:** How long the ping will wait for an answer, in milliseconds. Default: `5000` (5 seconds)
+-   **arpPingTries:** States how many ARP ping attempts tool can perform before device is stated as offline. Default: `20`
 -   **refreshInterval:** How often the device will be checked, in milliseconds. Default: `60000` (one minute)
 
 Use the following additional options for a **network:servicedevice**:
@@ -113,11 +114,11 @@ Because external tools are used for some of the presence detection mechanism or 
 For arp pings to work, a separate tool called "arping" is used.
 Linux has three different tools:
 
-*   arp-scan (not yet supported by this binding)
+*   arp-ping by Eli Fulkerson (Windows version available here: https://www.elifulkerson.com/projects/arp-ping.php)
 *   arping of the ip-utils (Ubuntu/Debian: `apt-get install iputils-arping`)
-*   arping by Thomas Habets (Ubuntu/Debian: `apt-get install arping`)
+*   arping by Thomas Habets - recommended (Ubuntu/Debian: `apt-get install arping`)
 
-arping by Thomas Habets runs on Windows and MacOS as well.
+arping by Thomas Habets runs on Windows (unsupported by developer) and MacOS as well.
 
 Make sure the tool is available in the PATH, or in the same path as the openHAB executable.
 

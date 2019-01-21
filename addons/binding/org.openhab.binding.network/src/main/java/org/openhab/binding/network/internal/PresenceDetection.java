@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  * @author Marc Mettke - Initial contribution
  * @author David Gräff, 2017 - Rewritten
  * @author Konstantin Panchenko, 2019 - Added number of attempts to arp value,
- *         fixed Arp Ping property status
+ *         fixed Arp Ping property status, add disabling Arp ping, DHCP and iOS wake-up for Internet address.
  */
 @NonNullByDefault
 public class PresenceDetection implements IPRequestReceivedCallback {
@@ -71,7 +71,7 @@ public class PresenceDetection implements IPRequestReceivedCallback {
     private final PresenceDetectionListener updateListener;
     private @Nullable ScheduledFuture<?> refreshJob;
     protected @Nullable ExecutorService executorService;
-    private String dhcpState = "off";
+    private String dhcpState = "Disabled";
     Integer currentCheck = 0;
     int detectionChecks = 0;
 
@@ -107,8 +107,6 @@ public class PresenceDetection implements IPRequestReceivedCallback {
         this.hostname = hostname;
         this.destination = InetAddress.getByName(hostname);
 
-        boolean ttt = destination.isSiteLocalAddress();
-
         if (arpPingMethod != null) {
             if (destination instanceof Inet4Address) {
                 setUseArpPing(true, arpPingUtilPath);
@@ -123,7 +121,18 @@ public class PresenceDetection implements IPRequestReceivedCallback {
     }
 
     public void setUseDhcpSniffing(boolean enable) {
-        this.useDHCPsniffing = enable;
+        if (enable) {
+            if (destination.isSiteLocalAddress()) {
+                this.useDHCPsniffing = true;
+                dhcpState = "Enabled";
+            } else {
+                this.useDHCPsniffing = false;
+                dhcpState = "Disabled, destination is not a local address";
+            }
+        } else {
+            this.useDHCPsniffing = false;
+            dhcpState = "Disabled";
+        }
     }
 
     public void setRefreshInterval(long refreshInterval) {
@@ -170,18 +179,23 @@ public class PresenceDetection implements IPRequestReceivedCallback {
      */
     public void setUseArpPing(boolean enable, String arpPingUtilPath) {
         this.arpPingUtilPath = arpPingUtilPath;
+
         if (!enable || StringUtils.isBlank(arpPingUtilPath)) {
             arpPingState = "Disabled";
             arpPingMethod = null;
             // return;
         } else if (destination == null || !(destination instanceof Inet4Address)) {
-            arpPingState = "Destination is not IPv4";
+            arpPingState = "Disabled, destination is not IPv4";
             arpPingMethod = null;
             // return;
+        } else if (!destination.isSiteLocalAddress()) {
+            arpPingState = "Disabled, destination is not local address";
+            arpPingMethod = null;
         } else {
             arpPingMethod = networkUtils.determineNativeARPpingMethod(arpPingUtilPath);
             if (arpPingMethod == ArpPingUtilEnum.UNKNOWN_TOOL) {
-                arpPingState = "Unsupported ARP Ping tools";
+                arpPingState = "Disabled, unsupported ARP Ping tool";
+                arpPingMethod = null;
             } else {
                 arpPingState = "Enabled";
             }
@@ -189,15 +203,15 @@ public class PresenceDetection implements IPRequestReceivedCallback {
     }
 
     public String getArpPingState() {
-        return arpPingState;
+        return this.arpPingState;
     }
 
     public String getIPPingState() {
-        return ipPingState;
+        return this.ipPingState;
     }
 
     public String getDhcpState() {
-        return dhcpState;
+        return this.dhcpState;
     }
 
     /**
@@ -205,7 +219,7 @@ public class PresenceDetection implements IPRequestReceivedCallback {
      * like iPhone or iPads. An additional port knock is performed before a ping.
      */
     public boolean isIOSdevice() {
-        return iosDevice;
+        return this.iosDevice;
     }
 
     /**
@@ -213,14 +227,22 @@ public class PresenceDetection implements IPRequestReceivedCallback {
      * like iPhone or iPads. An additional port knock is performed before a ping.
      */
     public void setIOSDevice(boolean value) {
-        iosDevice = value;
+        if (value) {
+            if (destination.isSiteLocalAddress()) {
+                this.iosDevice = true;
+            } else {
+                this.iosDevice = false;
+            }
+        } else {
+            this.iosDevice = false;
+        }
     }
 
     /**
      * Return the last seen value in milliseconds based on {@link System.currentTimeMillis()} or 0 if not seen yet.
      */
     public long getLastSeen() {
-        return lastSeenInMS;
+        return this.lastSeenInMS;
     }
 
     /**
@@ -440,7 +462,7 @@ public class PresenceDetection implements IPRequestReceivedCallback {
     protected void performARPping() {
         try {
             logger.trace("Perform ARP ping presence detection for {}", hostname);
-            if (iosDevice) {
+            if (this.iosDevice) {
                 networkUtils.wakeUpIOS(destination);
                 Thread.sleep(50);
             }
@@ -548,7 +570,7 @@ public class PresenceDetection implements IPRequestReceivedCallback {
                 if (DHCPListenService.register(destination.getHostAddress(), this).isUseUnprevilegedPort()) {
                     dhcpState = "No access right for port 67. Bound to port 6767 instead. Port forwarding necessary!";
                 } else {
-                    dhcpState = "Running normally";
+                    dhcpState = "Enabled, Running normally";
                 }
             } catch (SocketException e) {
                 logger.warn("Cannot use DHCP sniffing.", e);
@@ -557,7 +579,6 @@ public class PresenceDetection implements IPRequestReceivedCallback {
             }
         } else {
             DHCPListenService.unregister(destination.getHostAddress());
-            dhcpState = "off";
         }
     }
 }

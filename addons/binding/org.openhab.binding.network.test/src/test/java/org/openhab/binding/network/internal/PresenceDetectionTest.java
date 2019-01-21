@@ -95,7 +95,7 @@ public class PresenceDetectionTest {
     public void threadCountTest() {
         assertNull(subject.executorService);
 
-        doNothing().when(subject).performARPping(any());
+        doNothing().when(subject).performARPping();
         doNothing().when(subject).performJavaPing();
         doNothing().when(subject).performSystemPing();
         doNothing().when(subject).performServicePing(anyInt());
@@ -123,7 +123,7 @@ public class PresenceDetectionTest {
 
         verify(subject, times(0)).performJavaPing();
         verify(subject).performSystemPing();
-        verify(subject).performARPping(any());
+        verify(subject).performARPping();
         verify(subject).performServicePing(anyInt());
 
         verify(listener, times(3)).partialDetectionResult(any());
