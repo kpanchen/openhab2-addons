@@ -43,7 +43,8 @@ import org.eclipse.smarthome.io.net.exec.ExecUtil;
  * @author David Graeff - Initial contribution
  * @author Konstantin Panchenko - Added arp-ping tool support for Windows,
  *         added/fixed support for number of attempts to ARP ping,
- *         removed interface support
+ *         removed interface support, added description values to Enums,
+ *         fixed ARP tools detection methods
  */
 @NonNullByDefault
 public class NetworkUtils {
@@ -207,7 +208,7 @@ public class NetworkUtils {
         if (StringUtils.isBlank(result)) {
             return ArpPingUtilEnum.UNKNOWN_TOOL;
         } else if (result.contains("Thomas Habets")) {
-            if (result.matches("(.*)w sec(\\s*)Specify a timeout(.*)")) {
+            if (result.contains("w sec Specify a timeout")) {
                 return ArpPingUtilEnum.THOMAS_HABERT_ARPING;
             } else {
                 return ArpPingUtilEnum.THOMAS_HABERT_ARPING_WITHOUT_TIMEOUT;
@@ -221,10 +222,20 @@ public class NetworkUtils {
     }
 
     public enum IpPingMethodEnum {
-        JAVA_PING,
-        WINDOWS_PING,
-        IPUTILS_LINUX_PING,
-        MAC_OS_PING
+        JAVA_PING("Java ping"),
+        WINDOWS_PING("Windows native ping"),
+        IPUTILS_LINUX_PING("Linux iputils ping"),
+        MAC_OS_PING("Mac OS ping");
+
+        private String pingMethodValue;
+
+        private IpPingMethodEnum(String pingMethodValue) {
+            this.pingMethodValue = pingMethodValue;
+        }
+
+        public String getPingMethodName() {
+            return this.pingMethodValue;
+        }
     }
 
     /**
@@ -290,11 +301,21 @@ public class NetworkUtils {
     }
 
     public enum ArpPingUtilEnum {
-        UNKNOWN_TOOL,
-        IPUTILS_ARPING,
-        THOMAS_HABERT_ARPING,
-        THOMAS_HABERT_ARPING_WITHOUT_TIMEOUT,
-        ELI_FULKERSON_ARP_PING_FOR_WINDOWS
+        UNKNOWN_TOOL("Unknown tool"),
+        IPUTILS_ARPING("IPUtils ARPing"),
+        THOMAS_HABERT_ARPING("Thomas Habert ARPing tool"),
+        THOMAS_HABERT_ARPING_WITHOUT_TIMEOUT("Thomas Habert ARPing tool without timeout option"),
+        ELI_FULKERSON_ARP_PING_FOR_WINDOWS("Eli Fulkerson ARPing tool for Windows");
+
+        private String arpingMethodValue;
+
+        private ArpPingUtilEnum(String arpingMethodValue) {
+            this.arpingMethodValue = arpingMethodValue;
+        }
+
+        public String getArpingMethodName() {
+            return this.arpingMethodValue;
+        }
     }
 
     /**

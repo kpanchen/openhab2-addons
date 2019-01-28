@@ -16,13 +16,14 @@ import org.eclipse.jdt.annotation.Nullable;
  * do not rename them if you don't intend to break the configuration interface.
  *
  * @author David Graeff - Initial contribution
+ * @author Konstantin Panchenko - Parameters adjustment
  */
 @NonNullByDefault
 public class NetworkHandlerConfiguration {
     public String hostname = "";
-    public @Nullable Integer port;
+    public @Nullable Integer port = null;
     public Integer retry = 1;
     public Integer refreshInterval = 60000;
     public Integer arpPingTries = 20;
-    public Integer timeout = 5000;
+    public Integer timeout = 15000;
 }

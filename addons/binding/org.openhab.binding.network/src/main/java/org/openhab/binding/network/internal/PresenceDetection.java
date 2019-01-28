@@ -40,7 +40,8 @@ import org.slf4j.LoggerFactory;
  * @author Marc Mettke - Initial contribution
  * @author David Gräff, 2017 - Rewritten
  * @author Konstantin Panchenko, 2019 - Added number of attempts to arp value,
- *         fixed Arp Ping property status, add disabling Arp ping, DHCP and iOS wake-up for Internet address.
+ *         fixed Arp Ping property status, add disabling Arp ping, DHCP and iOS wake-up for Internet address,
+ *         Improved logging
  */
 @NonNullByDefault
 public class PresenceDetection implements IPRequestReceivedCallback {
@@ -52,14 +53,14 @@ public class PresenceDetection implements IPRequestReceivedCallback {
     private boolean useDHCPsniffing = false;
     private String arpPingState = "Disabled";
     private String ipPingState = "Disabled";
-    protected @Nullable ArpPingUtilEnum arpPingMethod;
+    protected @Nullable ArpPingUtilEnum arpPingMethod = null;
     private String arpPingUtilPath = "arping";
     protected @Nullable IpPingMethodEnum pingMethod = null;
     private boolean iosDevice;
     private Set<Integer> tcpPorts = new HashSet<>();
 
     private long refreshIntervalInMS = 60000;
-    private int timeoutInMS = 5000;
+    private int timeoutInMS = 15000;
     private int arpTries = 20;
     private long lastSeenInMS;
 
@@ -106,6 +107,7 @@ public class PresenceDetection implements IPRequestReceivedCallback {
     public void setHostname(String hostname) throws UnknownHostException {
         this.hostname = hostname;
         this.destination = InetAddress.getByName(hostname);
+        logger.info("Hostname {} resolved to {}", this.hostname, this.destination);
 
         if (arpPingMethod != null) {
             if (destination instanceof Inet4Address) {
@@ -125,9 +127,11 @@ public class PresenceDetection implements IPRequestReceivedCallback {
             if (destination.isSiteLocalAddress()) {
                 this.useDHCPsniffing = true;
                 dhcpState = "Enabled";
+                logger.info("DHCP Sniffing enabled");
             } else {
                 this.useDHCPsniffing = false;
                 dhcpState = "Disabled, destination is not a local address";
+                logger.info("DHCP Sniffing disabled, provided destination {} is not a local address", this.destination);
             }
         } else {
             this.useDHCPsniffing = false;
@@ -156,16 +160,25 @@ public class PresenceDetection implements IPRequestReceivedCallback {
      */
     public void setUseIcmpPing(@Nullable Boolean useSystemPing) {
         if (useSystemPing == null) {
-            ipPingState = "Disabled";
-            pingMethod = null;
+            this.ipPingState = "Disabled";
+            this.pingMethod = null;
+            logger.info("ICMP Ping has been disabled");
         } else if (useSystemPing) {
             final IpPingMethodEnum pingMethod = networkUtils.determinePingMethod();
             this.pingMethod = pingMethod;
-            ipPingState = pingMethod == IpPingMethodEnum.JAVA_PING ? "System ping feature test failed. Using Java ping"
-                    : pingMethod.name();
+            if (pingMethod == IpPingMethodEnum.JAVA_PING) {
+                this.ipPingState = String.format("System ping feature test failed. Using %s",
+                        pingMethod.getPingMethodName());
+                logger.warn("System ping feature test failed. Using {}", pingMethod.getPingMethodName());
+            } else {
+                this.ipPingState = String.format("Enabled using %s", pingMethod.getPingMethodName());
+                logger.info("ICMP Ping has been enabled, ping method set to {}", pingMethod.getPingMethodName());
+            }
         } else {
-            pingMethod = IpPingMethodEnum.JAVA_PING;
-            ipPingState = "Java ping";
+            this.pingMethod = IpPingMethodEnum.JAVA_PING;
+            this.ipPingState = String.format("Enabled using %s", IpPingMethodEnum.JAVA_PING.getPingMethodName());
+            logger.info("ICMP Ping has been enabled, ping method set to {}",
+                    IpPingMethodEnum.JAVA_PING.getPingMethodName());
         }
     }
 
@@ -177,27 +190,31 @@ public class PresenceDetection implements IPRequestReceivedCallback {
      * @param enable          Enable or disable ARP ping
      * @param arpPingUtilPath The file path to the utility
      */
+    @SuppressWarnings("null")
     public void setUseArpPing(boolean enable, String arpPingUtilPath) {
         this.arpPingUtilPath = arpPingUtilPath;
 
         if (!enable || StringUtils.isBlank(arpPingUtilPath)) {
             arpPingState = "Disabled";
             arpPingMethod = null;
-            // return;
+            logger.info("ARP Ping has been disabled");
         } else if (destination == null || !(destination instanceof Inet4Address)) {
-            arpPingState = "Disabled, destination is not IPv4";
+            arpPingState = "Disabled, destination is not IPv4 address";
             arpPingMethod = null;
-            // return;
+            logger.info("ARP Ping has been disabled, destination {} is not IPv4 address", destination);
         } else if (!destination.isSiteLocalAddress()) {
             arpPingState = "Disabled, destination is not local address";
             arpPingMethod = null;
+            logger.info("ARP Ping has been disabled, destination {} is not local address", destination);
         } else {
             arpPingMethod = networkUtils.determineNativeARPpingMethod(arpPingUtilPath);
             if (arpPingMethod == ArpPingUtilEnum.UNKNOWN_TOOL) {
                 arpPingState = "Disabled, unsupported ARP Ping tool";
                 arpPingMethod = null;
+                logger.info("ARP Ping has been disabled, unknown ARP tool {} has been provided", arpPingUtilPath);
             } else {
-                arpPingState = "Enabled";
+                arpPingState = String.format("Enabled using %s", arpPingMethod.getArpingMethodName());
+                logger.info("ARP Ping has been enabled, ARP tool set to {}", arpPingMethod.getArpingMethodName());
             }
         }
     }
