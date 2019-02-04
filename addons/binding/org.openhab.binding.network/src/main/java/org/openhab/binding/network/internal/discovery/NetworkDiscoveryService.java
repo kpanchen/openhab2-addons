@@ -119,8 +119,8 @@ public class NetworkDiscoveryService extends AbstractDiscoveryService implements
      */
     @Override
     protected void startScan() {
-        final ExecutorService service = executorService;
-        if (service == null) {
+        ExecutorService service = executorService;
+        if (!(service == null)) {
             return;
         }
         removeOlderResults(getTimestampOfLastScan(), null);
@@ -128,6 +128,10 @@ public class NetworkDiscoveryService extends AbstractDiscoveryService implements
 
         final Set<String> networkIPs = networkUtils.getNetworkIPs(MAXIMUM_IPS_PER_INTERFACE);
         executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
+        service = executorService;
+        if (service == null) {
+            return;
+        }
         scannedIPcount = 0;
 
         for (String ip : networkIPs) {
