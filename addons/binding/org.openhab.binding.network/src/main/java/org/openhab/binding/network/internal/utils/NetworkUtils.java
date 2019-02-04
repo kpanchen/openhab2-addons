@@ -345,7 +345,8 @@ public class NetworkUtils {
             proc = new ProcessBuilder(arpUtilPath, "-w", String.valueOf(timeoutInMS / 1000), "-c",
                     String.valueOf(numberOfAttempts), "-C", "1", ipV4address).start();
         } else if (arpingTool == ArpPingUtilEnum.ELI_FULKERSON_ARP_PING_FOR_WINDOWS) {
-            proc = new ProcessBuilder(arpUtilPath, "-n", String.valueOf(numberOfAttempts), "-x", ipV4address).start();
+            proc = new ProcessBuilder(arpUtilPath, "-n", String.valueOf(numberOfAttempts), "-w",
+                    String.valueOf(timeoutInMS), "-x", ipV4address).start();
         } else {
             proc = new ProcessBuilder(arpUtilPath, "-w", String.valueOf(timeoutInMS / 1000), "-c", "1", ipV4address)
                     .start();
