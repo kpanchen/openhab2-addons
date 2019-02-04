@@ -127,11 +127,12 @@ public class PresenceDetection implements IPRequestReceivedCallback {
             if (destination.isSiteLocalAddress()) {
                 this.useDHCPsniffing = true;
                 dhcpState = "Enabled";
-                logger.info("DHCP Sniffing enabled");
+                logger.debug("DHCP Sniffing enabled");
             } else {
                 this.useDHCPsniffing = false;
                 dhcpState = "Disabled, destination is not a local address";
-                logger.info("DHCP Sniffing disabled, provided destination {} is not a local address", this.destination);
+                logger.debug("DHCP Sniffing disabled, provided destination {} is not a local address",
+                        this.destination);
             }
         } else {
             this.useDHCPsniffing = false;
@@ -162,7 +163,7 @@ public class PresenceDetection implements IPRequestReceivedCallback {
         if (useSystemPing == null) {
             this.ipPingState = "Disabled";
             this.pingMethod = null;
-            logger.info("ICMP Ping has been disabled");
+            logger.debug("ICMP Ping has been disabled");
         } else if (useSystemPing) {
             final IpPingMethodEnum pingMethod = networkUtils.determinePingMethod();
             this.pingMethod = pingMethod;
@@ -172,12 +173,12 @@ public class PresenceDetection implements IPRequestReceivedCallback {
                 logger.warn("System ping feature test failed. Using {}", pingMethod.getPingMethodName());
             } else {
                 this.ipPingState = String.format("Enabled using %s", pingMethod.getPingMethodName());
-                logger.info("ICMP Ping has been enabled, ping method set to {}", pingMethod.getPingMethodName());
+                logger.debug("ICMP Ping has been enabled, ping method set to {}", pingMethod.getPingMethodName());
             }
         } else {
             this.pingMethod = IpPingMethodEnum.JAVA_PING;
             this.ipPingState = String.format("Enabled using %s", IpPingMethodEnum.JAVA_PING.getPingMethodName());
-            logger.info("ICMP Ping has been enabled, ping method set to {}",
+            logger.debug("ICMP Ping has been enabled, ping method set to {}",
                     IpPingMethodEnum.JAVA_PING.getPingMethodName());
         }
     }
@@ -197,24 +198,24 @@ public class PresenceDetection implements IPRequestReceivedCallback {
         if (!enable || StringUtils.isBlank(arpPingUtilPath)) {
             arpPingState = "Disabled";
             arpPingMethod = null;
-            logger.info("ARP Ping has been disabled");
+            logger.debug("ARP Ping has been disabled");
         } else if (destination == null || !(destination instanceof Inet4Address)) {
             arpPingState = "Disabled, destination is not IPv4 address";
             arpPingMethod = null;
-            logger.info("ARP Ping has been disabled, destination {} is not IPv4 address", destination);
+            logger.debug("ARP Ping has been disabled, destination {} is not IPv4 address", destination);
         } else if (!destination.isSiteLocalAddress()) {
             arpPingState = "Disabled, destination is not local address";
             arpPingMethod = null;
-            logger.info("ARP Ping has been disabled, destination {} is not local address", destination);
+            logger.debug("ARP Ping has been disabled, destination {} is not local address", destination);
         } else {
             arpPingMethod = networkUtils.determineNativeARPpingMethod(arpPingUtilPath);
             if (arpPingMethod == ArpPingUtilEnum.UNKNOWN_TOOL) {
                 arpPingState = "Disabled, unsupported ARP Ping tool";
                 arpPingMethod = null;
-                logger.info("ARP Ping has been disabled, unknown ARP tool {} has been provided", arpPingUtilPath);
+                logger.debug("ARP Ping has been disabled, unknown ARP tool {} has been provided", arpPingUtilPath);
             } else {
                 arpPingState = String.format("Enabled using %s", arpPingMethod.getArpingMethodName());
-                logger.info("ARP Ping has been enabled, ARP tool set to {}", arpPingMethod.getArpingMethodName());
+                logger.debug("ARP Ping has been enabled, ARP tool set to {}", arpPingMethod.getArpingMethodName());
             }
         }
     }
